@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "b.h"
+#include <assert.h>
 
 typedef struct tEmployeeTable
 {
@@ -27,6 +28,7 @@ int main()
 
 	creatFile(&fp, "workers", (BlockTable*)&infoTable, sizeof(EmployeeTable));
 	//openFIle(&fp, "workers");
+   
 
 	/* show free block */
 	getFreeTable(fp ,&freeTable);
@@ -40,10 +42,10 @@ int main()
 	/* add a guy block*/
 	Guy sample2 = { 0,0,"Mosby!" };
 	addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-	addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-	addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-	addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-	
+    addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
+    addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
+    addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
+
 	/* show info block */
 	getInfoTable(fp, (BlockTable*)&infoTable, sizeof(EmployeeTable));
 	Guy sample3 = { 0,infoTable.head };

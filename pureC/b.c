@@ -8,7 +8,7 @@
  *	12.22	: finish openFile(2), modify creatFile(6)	
  *  12.23	: modify expandFile(2), finish addInfoBlock(3), need to debug
  *	12.24	: modify expandFile(3), finish get/set Table/Block, debug...
- *  12.25   : sync to github
+ *  12.25   : sync to github, finish debug of addInfoBlock(3)
  *	mallocBlock has 3 places to test
  */
 
@@ -104,16 +104,6 @@ int creatFile(FILE **fp, char *name, BlockTable *infoTable, long tableSize)
 		return -2;
 	}
 
-	/* set first free block */
-	Block freeBlock;
-	freeBlock.size = END;
-	freeBlock.next = END;
-	if (fwrite(&freeBlock, sizeof(Block), 1, *fp) == 0)
-	{
-		panic("unable to write\n");
-		return -2;
-	}
-
 	return 0;
 }
 
@@ -171,12 +161,12 @@ int setInfoTable(FILE *fp, BlockTable *table, long size)
 		panic("uanble to write\n");
 		return -2;
 	}
-	return -2;
+	return 0;
 }
 
 int getNextBlock(FILE *fp, Block *current)
 {
-	if (current->next <= 0)
+	if (current->next == END)
 	{
 		panic("end of the file\n");
 		return 1;
@@ -188,10 +178,12 @@ int getNextBlock(FILE *fp, Block *current)
 
 }
 
-int getBlock(FILE *fp, long position, Block *get, long size)
+int getBlock(FILE *fp, long position, Block *get)
 {
 	fseek(fp, position, SEEK_SET);
-	fread_s(get, size, size, 1, fp);
+	fread_s(get, sizeof(Block), sizeof(Block), 1, fp);
+	fseek(fp, position, SEEK_SET);
+	fread_s(get, get->size, get->size, 1, fp);
 	if (feof(fp) != 0)
 	{
 		panic("get EOF\n");
@@ -200,10 +192,10 @@ int getBlock(FILE *fp, long position, Block *get, long size)
 	return 0;
 }
 
-int setBlock(FILE *fp, long position, Block *set, long size)
+int setBlock(FILE *fp, long position, Block *set)
 {
 	fseek(fp, position, SEEK_SET);
-	if (fwrite(set, size, 1, fp) != 1)
+	if (fwrite(set, set->size, 1, fp) != 1)
 	{
 		panic("unable to write\n");
 		return -2;
@@ -233,7 +225,7 @@ return -2;
 	}
 	/* set new block'size */
 	Block temp = { size, END };
-	if (setBlock(fp, tempSite, &temp, sizeof(Block)) != 0)
+	if (setBlock(fp, tempSite, &temp) != 0)
 	{
 		panic("fail to call function\n");
 		return -4;
@@ -290,7 +282,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 	Block temp;
 	long preSite;
 	preSite = freeTable.head;
-	if (setBlock(fp, freeTable.head, &temp, sizeof(Block)) != 0)
+	if (setBlock(fp, freeTable.head, &temp) != 0)
 	{
 		panic("fail to call function\n");
 		return -4;
@@ -321,20 +313,20 @@ int mallocBlock(FILE *fp, long size, long *position)
 			*position = ftell(fp) - sizeof(Block);
 
 			Block current = { size, 0 };
-			if (setBlock(fp, *position, &current, sizeof(Block)) != 0)
+			if (setBlock(fp, *position, &current) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
 			}
 
 			Block pre;
-			if (getBlock(fp, preSite - sizeof(Block), &pre, sizeof(Block)) != 0)
+			if (getBlock(fp, preSite - sizeof(Block), &pre) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
 			}
 			pre.next = temp.next;
-			if (setBlock(fp, preSite - sizeof(Block), &pre, sizeof(Block)) != 0)
+			if (setBlock(fp, preSite - sizeof(Block), &pre) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
@@ -347,7 +339,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 			*position = freeTable.head;
 			
 			Block current = { size, 0 };
-			if (setBlock(fp, *position, &current, sizeof(Block)) != 0)
+			if (setBlock(fp, *position, &current) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
@@ -372,7 +364,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 	else
 	{
 		/* get suitable block, need to divide that block */
-		
+
 		if (freeTable.head != preSite)
 		{
 			/* not the first block, divide it */
@@ -381,7 +373,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 
 			/* modify current block's size */
 			Block current = { size, 0 };
-			if (setBlock(fp, *position, &current, sizeof(Block)) != 0)
+			if (setBlock(fp, *position, &current) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
@@ -390,7 +382,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 			/* modify previous block's next */
 			Block pre;
 			long preNext = ftell(fp) - sizeof(Block) + size;
-			if (getBlock(fp, preSite - sizeof(Block), &pre, sizeof(Block)) != 0)
+			if (getBlock(fp, preSite - sizeof(Block), &pre) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
@@ -398,16 +390,16 @@ int mallocBlock(FILE *fp, long size, long *position)
 			pre.next = preNext;
 			if (setBlock(fp, preSite - sizeof(Block), &pre, sizeof(Block)) != 0)
 			{
-					panic("fail to call function\n");
-					return -4;
+				panic("fail to call function\n");
+				return -4;
 			}
 
 			/* modify next block */
 			Block next = { temp.size - size, temp.next };
-			if (setBlock(fp, preNext, &next, sizeof(Block)) != 0)
+			if (setBlock(fp, preNext, &next) != 0)
 			{
-					panic("fail to call function\n");
-					return -4;
+				panic("fail to call function\n");
+				return -4;
 			}
 			/* don't require to upadta free table */
 		}
@@ -419,7 +411,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 
 			/* modify current block's size */
 			Block current = { size, preSite + size };
-			if (setBlock(fp, preSite, &current, sizeof(Block)) != 0)
+			if (setBlock(fp, preSite, &current) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
@@ -435,7 +427,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 
 			/* modify next block */
 			Block next = { temp.size - size, temp.next };
-			if (setBlock(fp, preSite + size, &next, sizeof(Block)) != 0)
+			if (setBlock(fp, preSite + size, &next) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
@@ -446,6 +438,12 @@ int mallocBlock(FILE *fp, long size, long *position)
 		return 0;
 	}
 }
+
+int getExactBlock(FILE *fp, Block *target, int(*comp)(Block* tar, void* src), void* src)
+{
+	return 0;
+}
+
 
 /* api */
 int addInfoBlock(FILE *fp, Block *add, long size)
@@ -472,7 +470,7 @@ int addInfoBlock(FILE *fp, Block *add, long size)
 	else
 	{
 		BlockTable infoTable;
-		if (getInfoTable(fp, &infoTable, sizeof(BlockTable)) != 0)
+ 		if (getInfoTable(fp, &infoTable, sizeof(BlockTable)) != 0)
 		{
 			panic("fail to call function\n");
 			return -4;
@@ -492,7 +490,7 @@ int addInfoBlock(FILE *fp, Block *add, long size)
 
 		add->next = tempSite;
 		add->size = size;
-		if (setBlock(fp, position,&add, size) != 0)
+		if (setBlock(fp, position, add) != 0)
 		{
 			printf("fail to call function\n");
 			return -4;
@@ -500,4 +498,15 @@ int addInfoBlock(FILE *fp, Block *add, long size)
 	
 		return 0;
 	}
+}
+
+int DeleInfoBlock(FILE *fp, Block *dele)
+{
+	if (fp == NULL)
+	{
+		panic("null pointer\n");
+		return -1;
+	}
+
+
 }
