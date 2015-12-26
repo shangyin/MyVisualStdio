@@ -60,7 +60,7 @@ int creatFile(FILE **fp, char *name, BlockTable *infoTable, long tableSize);
 
 int openFIle(FILE **fp, char *name);
 
-int getExactBlock(FILE *fp, Block *target[], int(*comp)(void* des, void* src), void* src);
+int getExactBlock(FILE *fp, Block *target, int(*comp)(void* des, void* src), void* src);
 
 int addInfoBlock(FILE *fp, Block *add, long size);
 

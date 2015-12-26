@@ -160,7 +160,7 @@ int getNextBlock(FILE *fp, Block *current)
 	if (current->next == 0)
 	{
 		BlockTable infoTable;
-		getInfoTable(fp, &infoTable, sizeof(Block));
+		getInfoTable(fp, &infoTable, sizeof(BlockTable));
 		getBlock(fp, infoTable.head, current);
 		return 0;
 	}
@@ -442,28 +442,33 @@ int mallocBlock(FILE *fp, long size, long *position)
 	}
 }
 
-int getExactBlock(FILE *fp, Block *target[], int(*comp)(void* des, void* src), void* src)
+/* use buffer, 4096 */
+int getExactBlock(FILE *fp, Block *target, int(*comp)(void* des, void* src), void* src)
 {
+	/* set buffer */
+	Block *temp = (Block*)malloc(4096);
+	memset(temp, 0, sizeof(Block));
+
 	int index = 0;
-	Block temp = { 0,0 };
-	while (getNextBlock(fp, &temp) == 0)
+	while (getNextBlock(fp, temp) == 0)
 	{
-		if (comp(&temp, src) == 0)
+		if (comp(temp, src) == 0)
 		{
-			(*target)[index++] = temp;
+			memcpy((char*)target + index*(temp->size), temp, temp->size);
+			index++;
 		}
 	}
+	free(temp);
 	if (index == 0)
 	{
 		panic("find nothing\n");
-		return 1;
+		return 0;
 	}
 	else
 	{
-		return 0;
+		return index;
 	}
 }
-
 
 /* api */
 int addInfoBlock(FILE *fp, Block *add, long size)
@@ -527,4 +532,47 @@ int DeleInfoBlock(FILE *fp, Block *dele)
 		return -1;
 	}
 
+	long preSite;
+	long curSite;
+	Block *temp = (Block*)malloc(4096);
+	BlockTable infoTable;
+	getInfoTable(fp, &infoTable, sizeof(BlockTable));
+	memset(temp, 0, sizeof(Block));
+	fseek(fp, 0, SEEK_SET);
+	while (preSite = ftell(fp) - temp->size, getNextBlock(fp, temp) == 0)
+	{
+		if (temp->next == dele->next)	
+		{
+			/* they are the same, and now preSite is the site of pre block */
+			if (preSite == 0)
+			{
+				/* first block */
+				curSite = infoTable.head;
+				infoTable.head = temp->next;
+			}
+			else
+			{
+				/* not the first */
+				curSite = ftell(fp) - temp->size;
+				Block pre;
+				getBlock(fp, preSite, &pre);
+				pre.next = temp->next;
+				setBlock(fp, preSite, &pre);
+			}
+			infoTable.num -= 1;
+			setInfoTable(fp, &infoTable, sizeof(BlockTable));
+
+			/* add to free table */
+			BlockTable freeTable;
+			getFreeTable(fp, &freeTable);
+			temp->next = freeTable.head;
+			freeTable.head = curSite;
+			freeTable.num += 1;
+			setBlock(fp, freeTable.head, temp);
+			setFreeTable(fp, &freeTable);
+			free(temp);
+			return 0;
+		}
+	}
+	return 1;
 }

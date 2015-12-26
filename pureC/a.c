@@ -56,8 +56,15 @@ int main()
 	    printf("%ld\t%ld\t%s\n", sample3.size, sample3.next,sample3.name);
 	}
 
-	Block res[100];
-	getExactBlock(fp, &res, compare, "Dosby");
+	Guy res[100];
+	getExactBlock(fp, (Block*)res, compare, "Xosby!");
+	DeleInfoBlock(fp, (Block*)&res[0]);
+
+	sample3.next = 0;
+	while (getNextBlock(fp, (Block*)&sample3) == 0)
+	{
+		printf("%ld\t%ld\t%s\n", sample3.size, sample3.next, sample3.name);
+	}
 
 	fclose(fp);
 	return 0;
