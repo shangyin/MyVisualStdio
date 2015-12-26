@@ -4,8 +4,6 @@
 #define USED 1
 #define END (-1)
 
-
-/* content struct, should be expand if use */
 typedef struct tBlock
 {
 	long size;
@@ -20,6 +18,7 @@ typedef struct tBlockTable
 	long tail;
 	int num;
 } BlockTable;
+
 /*
  *	the structs should follow types like these:
  *
@@ -39,27 +38,32 @@ typedef struct tBlockTable
  *	};
  */
 
+int getFreeTable(FILE *fp, BlockTable *table);
 
-/* clean the file with 0 for size bytes,
-set free block table and info table
-use for initialization */
+int getInfoTable(FILE *fp, BlockTable *table, long size);
+
+int setFreeTable(FILE *fp, BlockTable *table);
+
+int setInfoTable(FILE *fp, BlockTable *table, long size);
+
+int getNextBlock(FILE *fp, Block *current);
+
+int getBlock(FILE *fp, long position, Block *get);
+
+int setBlock(FILE *fp, long position, Block *set);
+
+int expandFile(FILE *fp, long size, long *position);
+
+int mallocBlock(FILE *fp, long size, long *position);
+
 int creatFile(FILE **fp, char *name, BlockTable *infoTable, long tableSize);
 
 int openFIle(FILE **fp, char *name);
 
-int getFreeTable(FILE *fp, BlockTable *table);
-
-int getInfoTable(FILE *fp, BlockTable *table, long tableSize);
-
-/* write the new block with updating the free table,
-the alloced block always be the first of the free list.
-should not be api, for it may leads to mistakes */
-int expandFile(FILE *fp, long size, BlockTable *freeTable);
-
-/* harmless to use by developer,
-but should not be api, for it don't check input */
-int getNextBlock(FILE *fp, Block *current);
-
-int mallocBlock(FILE *fp, long size, long *position);
+int getExactBlock(FILE *fp, Block *target[], int(*comp)(void* des, void* src), void* src);
 
 int addInfoBlock(FILE *fp, Block *add, long size);
+
+int DeleInfoBlock(FILE *fp, Block *dele);
+
+

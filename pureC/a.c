@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "b.h"
 #include <assert.h>
+#include <string.h>
 
 typedef struct tEmployeeTable
 {
@@ -18,44 +19,46 @@ typedef struct tGuy
 	char name[10];
 }Guy;
 
+int compare(void* des, void* src)
+{
+	Guy *temp = (Guy*)des;
+	if (strcmp(temp->name, (char*)src) == 0)
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+}
+
 int main()
 {
 	FILE *fp;
 	EmployeeTable infoTable = { 0,0,0,0,"test!" };
 	BlockTable freeTable = { 0,0,0,0 };
-	
-	long position;
 
 	creatFile(&fp, "workers", (BlockTable*)&infoTable, sizeof(EmployeeTable));
 	//openFIle(&fp, "workers");
-   
-
-	/* show free block */
-	getFreeTable(fp ,&freeTable);
-	Guy sample1 = { 0,freeTable.head };
-	printf("\n\nsite of head:%ld\n", freeTable.head);
-	while (getNextBlock(fp, (Block*)&sample1) == 0)
-	{
-		printf("%ld\t%ld\n", sample1.size, sample1.next);
-	}
 
 	/* add a guy block*/
-	Guy sample2 = { 0,0,"Mosby!" };
-	addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-    addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-    addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-    addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
-
-	/* show info block */
-	getInfoTable(fp, (BlockTable*)&infoTable, sizeof(EmployeeTable));
-	Guy sample3 = { 0,infoTable.head };
-	printf("\n\nsite of head:%ld\n", infoTable.head);
-	while (getNextBlock(fp, (Block*)&sample3) == 0)
+	Guy sample2 = { 0,0,"Aosby!" };
+	for (int i = 0; i < 26; i++)
 	{
-	    printf("%ld\t%ld\n", sample3.size, sample3.next);
+		addInfoBlock(fp, (Block*)&sample2, sizeof(Guy));
+		sample2.name[0] += 1;
 	}
 
-    
+	/* show info block */
+	Guy sample3 = { 0,0 };
+	while (getNextBlock(fp, (Block*)&sample3) == 0)
+	{
+	    printf("%ld\t%ld\t%s\n", sample3.size, sample3.next,sample3.name);
+	}
+
+	Block res[100];
+	getExactBlock(fp, &res, compare, "Dosby");
+
 	fclose(fp);
 	return 0;
 }

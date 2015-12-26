@@ -9,6 +9,8 @@
  *  12.23	: modify expandFile(2), finish addInfoBlock(3), need to debug
  *	12.24	: modify expandFile(3), finish get/set Table/Block, debug...
  *  12.25   : sync to github, finish debug of addInfoBlock(3)
+ *	12.26	: modify getNextBlock(2)
+ *
  *	mallocBlock has 3 places to test
  */
 
@@ -43,6 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "b.h"
 
 #define FREE 0
 #define USED 1
@@ -54,20 +57,7 @@ void panic(char *str)
 }
 
 /* content struct, should be expand if use */
-typedef struct tBlock
-{
-	long size;
-	long next;
-} Block;
 
-/* head of BlockTable */
-typedef struct tBlockTable
-{
-	char isUsed;
-	long head;
-	long tail;
-	int num;
-} BlockTable;
 
 
 /* creat a new file,
@@ -117,7 +107,7 @@ int openFIle(FILE **fp, char *name)
 	return 0;
 }
 
-/* Should not be api, just for me to test */
+/* Should not be api, just for the library itself */
 int getFreeTable(FILE *fp, BlockTable *table)
 {
 	fseek(fp, 0, SEEK_SET);
@@ -166,6 +156,15 @@ int setInfoTable(FILE *fp, BlockTable *table, long size)
 
 int getNextBlock(FILE *fp, Block *current)
 {
+	/* assume freeTable must exist */
+	if (current->next == 0)
+	{
+		BlockTable infoTable;
+		getInfoTable(fp, &infoTable, sizeof(Block));
+		getBlock(fp, infoTable.head, current);
+		return 0;
+	}
+
 	if (current->next == END)
 	{
 		panic("end of the file\n");
@@ -173,7 +172,7 @@ int getNextBlock(FILE *fp, Block *current)
 	}
 
 	fseek(fp, current->next, SEEK_SET);
-	fread_s(current, sizeof(Block), sizeof(Block), 1, fp);
+	fread_s(current, current->size, current->size, 1, fp);
 	return 0;
 
 }
@@ -184,12 +183,16 @@ int getBlock(FILE *fp, long position, Block *get)
 	fread_s(get, sizeof(Block), sizeof(Block), 1, fp);
 	fseek(fp, position, SEEK_SET);
 	fread_s(get, get->size, get->size, 1, fp);
+
 	if (feof(fp) != 0)
 	{
 		panic("get EOF\n");
 		return -6;
 	}
-	return 0;
+	else
+	{
+		return 0;
+	}
 }
 
 int setBlock(FILE *fp, long position, Block *set)
@@ -220,7 +223,7 @@ int expandFile(FILE *fp, long size, long *position)
 		if (fwrite(&zero, sizeof(char), 1, fp) == 0)
 		{
 			panic("unable to write\n");
-return -2;
+			return -2;
 		}
 	}
 	/* set new block'size */
@@ -282,7 +285,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 	Block temp;
 	long preSite;
 	preSite = freeTable.head;
-	if (setBlock(fp, freeTable.head, &temp) != 0)
+	if (getBlock(fp, freeTable.head, &temp) != 0)
 	{
 		panic("fail to call function\n");
 		return -4;
@@ -388,7 +391,7 @@ int mallocBlock(FILE *fp, long size, long *position)
 				return -4;
 			}
 			pre.next = preNext;
-			if (setBlock(fp, preSite - sizeof(Block), &pre, sizeof(Block)) != 0)
+			if (setBlock(fp, preSite - sizeof(Block), &pre) != 0)
 			{
 				panic("fail to call function\n");
 				return -4;
@@ -439,9 +442,26 @@ int mallocBlock(FILE *fp, long size, long *position)
 	}
 }
 
-int getExactBlock(FILE *fp, Block *target, int(*comp)(Block* tar, void* src), void* src)
+int getExactBlock(FILE *fp, Block *target[], int(*comp)(void* des, void* src), void* src)
 {
-	return 0;
+	int index = 0;
+	Block temp = { 0,0 };
+	while (getNextBlock(fp, &temp) == 0)
+	{
+		if (comp(&temp, src) == 0)
+		{
+			(*target)[index++] = temp;
+		}
+	}
+	if (index == 0)
+	{
+		panic("find nothing\n");
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 
@@ -475,7 +495,7 @@ int addInfoBlock(FILE *fp, Block *add, long size)
 			panic("fail to call function\n");
 			return -4;
 		}
-		long tempSite = infoTable.head;
+		add->next = infoTable.head;
 		infoTable.head = position;
 		infoTable.num += 1;
 		if (infoTable.tail == END)
@@ -488,7 +508,6 @@ int addInfoBlock(FILE *fp, Block *add, long size)
 			return -4;
 		}
 
-		add->next = tempSite;
 		add->size = size;
 		if (setBlock(fp, position, add) != 0)
 		{
@@ -507,6 +526,5 @@ int DeleInfoBlock(FILE *fp, Block *dele)
 		panic("null pointer\n");
 		return -1;
 	}
-
 
 }
