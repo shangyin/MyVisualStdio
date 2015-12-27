@@ -46,11 +46,11 @@ int setFreeTable(FILE *fp, BlockTable *table);
 
 int setInfoTable(FILE *fp, BlockTable *table, long size);
 
-int getNextBlock(FILE *fp, Block *current);
+int getNextFullBlock(FILE *fp, Block *current);
 
-int getBlock(FILE *fp, long position, Block *get);
+int getFullBlock(FILE *fp, long position, Block *get);
 
-int setBlock(FILE *fp, long position, Block *set);
+int setFullBlock(FILE *fp, long position, Block *set);
 
 int expandFile(FILE *fp, long size, long *position);
 
@@ -62,8 +62,8 @@ int openFIle(FILE **fp, char *name);
 
 int getExactBlock(FILE *fp, Block *target, int(*comp)(void* des, void* src), void* src);
 
-int addInfoBlock(FILE *fp, Block *add, long size);
+int DeleInfoBlock(FILE *fp, int(*compare)(void* dst, void* src), void* src);
 
-int DeleInfoBlock(FILE *fp, Block *dele);
+int modifyBlock(FILE *fp, int(*compare)(void* dst, void* src), int(*change)(void* dst, void* src), void *src1, void *src2);
 
 

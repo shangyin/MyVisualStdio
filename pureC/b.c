@@ -154,14 +154,14 @@ int setInfoTable(FILE *fp, BlockTable *table, long size)
 	return 0;
 }
 
-int getNextBlock(FILE *fp, Block *current)
+int getNextFullBlock(FILE *fp, Block *current)
 {
 	/* assume freeTable must exist */
 	if (current->next == 0)
 	{
 		BlockTable infoTable;
 		getInfoTable(fp, &infoTable, sizeof(BlockTable));
-		getBlock(fp, infoTable.head, current);
+		getFullBlock(fp, infoTable.head, current);
 		return 0;
 	}
 
@@ -177,7 +177,7 @@ int getNextBlock(FILE *fp, Block *current)
 
 }
 
-int getBlock(FILE *fp, long position, Block *get)
+int getFullBlock(FILE *fp, long position, Block *get)
 {
 	fseek(fp, position, SEEK_SET);
 	fread_s(get, sizeof(Block), sizeof(Block), 1, fp);
@@ -195,7 +195,7 @@ int getBlock(FILE *fp, long position, Block *get)
 	}
 }
 
-int setBlock(FILE *fp, long position, Block *set)
+int setFullBlock(FILE *fp, long position, Block *set)
 {
 	fseek(fp, position, SEEK_SET);
 	if (fwrite(set, set->size, 1, fp) != 1)
@@ -524,7 +524,7 @@ int addInfoBlock(FILE *fp, Block *add, long size)
 	}
 }
 
-int DeleInfoBlock(FILE *fp, Block *dele)
+int DeleInfoBlock(FILE *fp, int (*compare)(void* dst, void* src), void* src)
 {
 	if (fp == NULL)
 	{
@@ -534,14 +534,15 @@ int DeleInfoBlock(FILE *fp, Block *dele)
 
 	long preSite;
 	long curSite;
+	Block *pre = (Block*)malloc(4906);
 	Block *temp = (Block*)malloc(4096);
 	BlockTable infoTable;
 	getInfoTable(fp, &infoTable, sizeof(BlockTable));
 	memset(temp, 0, sizeof(Block));
 	fseek(fp, 0, SEEK_SET);
-	while (preSite = ftell(fp) - temp->size, getNextBlock(fp, temp) == 0)
+	while (preSite = ftell(fp) - temp->size, getNextFullBlock(fp, temp) == 0)
 	{
-		if (temp->next == dele->next)	
+		if (compare((void*)temp , src) == 0)	
 		{
 			/* they are the same, and now preSite is the site of pre block */
 			if (preSite == 0)
@@ -554,10 +555,9 @@ int DeleInfoBlock(FILE *fp, Block *dele)
 			{
 				/* not the first */
 				curSite = ftell(fp) - temp->size;
-				Block pre;
-				getBlock(fp, preSite, &pre);
-				pre.next = temp->next;
-				setBlock(fp, preSite, &pre);
+				getBlock(fp, preSite, pre);
+				pre->next = temp->next;
+				setBlock(fp, preSite, pre);
 			}
 			infoTable.num -= 1;
 			setInfoTable(fp, &infoTable, sizeof(BlockTable));
@@ -570,9 +570,32 @@ int DeleInfoBlock(FILE *fp, Block *dele)
 			freeTable.num += 1;
 			setBlock(fp, freeTable.head, temp);
 			setFreeTable(fp, &freeTable);
-			free(temp);
-			return 0;
+			temp->next = pre->next;
 		}
 	}
-	return 1;
+	free(temp);
+	free(pre);
+	return 0;
+}
+
+int modifyBlock(FILE *fp, int (*compare)(void* dst, void* src), int (*change)(void* dst, void* src), void *src1, void *src2)
+{
+	if (fp == NULL)
+	{
+		panic("null pointer\n");
+		return -1;
+	}
+
+	Block *current = (Block*)malloc(4096);
+	memset(current, 0, sizeof(Block));
+	while (getNextFullBlock(fp, current) == 0)
+	{
+		if (compare((void*)current, src1) == 0)
+		{
+			change((void*)current, src2);
+			setFullBlock(fp, ftell(fp) - current->size, current);
+		}
+	}
+	free(current);
+	return 0;
 }

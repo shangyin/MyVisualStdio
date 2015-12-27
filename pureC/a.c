@@ -32,6 +32,24 @@ int compare(void* des, void* src)
 	}
 }
 
+int deleCompare(void* dst, void* src)
+{
+	if (((Guy*)dst)->next == ((Guy*)src)->next)
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+}
+
+int modifyOperate(void* dst, void* src)
+{
+	memcpy(((Guy*)dst)->name, src, 10);
+	return 0;
+}
+
 int main()
 {
 	FILE *fp;
@@ -58,12 +76,13 @@ int main()
 
 	Guy res[100];
 	getExactBlock(fp, (Block*)res, compare, "Xosby!");
-	DeleInfoBlock(fp, (Block*)&res[0]);
+	DeleInfoBlock(fp, compare, "Xosby!");
+	modifyBlock(fp, compare, modifyOperate, "Mosby!", "Marshall!");
 
-	sample3.next = 0;
-	while (getNextBlock(fp, (Block*)&sample3) == 0)
+	Guy sample4 = { 0,0 };
+	while (getNextBlock(fp, (Block*)&sample4) == 0)
 	{
-		printf("%ld\t%ld\t%s\n", sample3.size, sample3.next, sample3.name);
+		printf("%ld\t%ld\t%s\n", sample4.size, sample4.next, sample4.name); 
 	}
 
 	fclose(fp);
