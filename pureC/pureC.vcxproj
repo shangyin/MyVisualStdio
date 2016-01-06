@@ -150,7 +150,6 @@
   <ItemGroup>
     <ClCompile Include="a.c" />
     <ClCompile Include="b.c" />
-    <ClCompile Include="main.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />

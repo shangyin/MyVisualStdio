@@ -11,20 +11,24 @@ typedef struct tBlockTable BlockTable;
 /*
  *	the structs should follow types like these:
  *
- *	struct tBlock
+ *	struct tBlockStuff
  *	{
  *		long size;
  *		long next;
  *      ** add type **
- *	};
- *	struct tBlockTable
+ *	}BlockStuff;
+ *	struct tBlockTableStuff
  *	{
  *		char isUsed;
  *		long head;
  *		long tail;
  *		int num;
  *      ** add type **
- *	};
+ *	}BlockTableStuff;
+ *	
+ *	BlockStuff should be init with correct size, like
+ *	BlockStuff arg = {sizeof(BlockStuff)}
+ *
  */
 
 int creatFile(FILE **fp, char *name, BlockTable *infoTable, long tableSize);
@@ -38,3 +42,5 @@ int getExactBlock(FILE *fp, Block *target[], int(*comp)(void* des, void* src), v
 int DeleInfoBlock(FILE *fp, int(*compare)(void* dst, void* src), void* src);
 
 int modifyBlock(FILE *fp, int(*compare)(void* dst, void* src), int(*change)(void* dst, void* src), void *src1, void *src2);
+
+int getTable(FILE *fp, BlockTable *freeTable, BlockTable *infoTable, int infoSize);

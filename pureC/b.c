@@ -28,24 +28,11 @@
  *	and the error messages will be print to stderr by function panic(1).
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-
-
-void panic(char *str)
-{
-	fprintf_s(stderr, str);
-}
-
 struct tBlock
 {
 	long size;
 	long next;
 };
-
-
 struct tBlockTable
 {
 	char isUsed;
@@ -54,8 +41,19 @@ struct tBlockTable
 	int num;
 };
 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include "b.h"
 
+void panic(char *str)
+{
+	fprintf_s(stderr, str);
+}
+
+/***** declare function *****/
 static int getBlock(FILE *fp, long position, Block *get);
 static int setBlock(FILE *fp, long position, Block *set);
 static int getNextBlock(FILE *fp, Block *current);
@@ -66,6 +64,11 @@ static int getFreeTable(FILE *fp, BlockTable *table);
 static int getInfoTable(FILE *fp, BlockTable *table, long size);
 static int setFreeTable(FILE *fp, BlockTable *table);
 static int setInfoTable(FILE *fp, BlockTable *table, long size);
+
+
+/**************************************************************************************************************************************/
+/******************************                          define function                     ******************************************/
+/**************************************************************************************************************************************/
 
 static int getBlock(FILE *fp, long position, Block *get)
 {
@@ -189,7 +192,6 @@ static int getNextFullBlock(FILE *fp, Block *current)
 
 }
 
-/* Should not be api, just for the library itself */
 static int getFreeTable(FILE *fp, BlockTable *table)
 {
 	fseek(fp, 0, SEEK_SET);
@@ -236,8 +238,7 @@ static int setInfoTable(FILE *fp, BlockTable *table, long size)
 	return 0;
 }
 
-/* it will updata the free table,
-the alloced block always be the first of the free list. */
+/* The alloced block always be the first of the free list. */
 static int expandFile(FILE *fp, long size, long *position)
 {
 	
@@ -260,9 +261,7 @@ static int expandFile(FILE *fp, long size, long *position)
 	return 0;
 }
 
-/* need to be tested
-if size < sizeof(Block), set it as sizeof(Block),
-this means it can malloc a sizeof(Block) block, althought it's meanningless*/
+/* need to be tested, get free block from free table, or the rear of file */
 static int mallocBlock(FILE *fp, long size, long *position)
 {
 	if (fp == NULL)
@@ -270,36 +269,18 @@ static int mallocBlock(FILE *fp, long size, long *position)
 		panic("null pointer\n");
 		return -1;
 	}
-
-	BlockTable freeTable;
-	getFreeTable(fp, &freeTable);
-
-
-	if (freeTable.isUsed == FREE)
-	{
-		panic("not the right file\n");
-		exit(0);
-	}
-
 	if (size < sizeof(Block))
 	{
-		size = sizeof(Block);
-		panic("block has at least 8 bytes\n");
+		panic("meaningless operation\n");
+		return -5;
 	}
 
 	/*** all messages are OK, start to find suitable block ***/
 
-	/* not tested */
-	/* no free block */
-	if (freeTable.num == 0)
-	{
-		expandFile(fp, size, position);
-		return 0;
-	}
-
-	/* have free blocks, find it */
 	Block temp = { 0,0 };
 	long preSite;
+	BlockTable freeTable;
+	getFreeTable(fp, &freeTable);
 	fseek(fp, freeTable.head, SEEK_SET);
 	while ((preSite = ftell(fp), getNextBlock(fp, &temp) == 0) && temp.size < size);
 
@@ -403,10 +384,10 @@ static int mallocBlock(FILE *fp, long size, long *position)
 
 
 /**************************************************************************************************************************************/
-/*****************************************                          api                      ******************************************/
+/*****************************************                          API                      ******************************************/
 /**************************************************************************************************************************************/
 
-/* creat a new file, init, free block table and info table.*/
+/* creat a new file, init, include free block table and info table.*/
 int creatFile(FILE **fp, char *name, BlockTable *infoTable, long tableSize)
 {
 	if (fopen_s(fp, name, "wb+") != 0)
@@ -439,7 +420,6 @@ int creatFile(FILE **fp, char *name, BlockTable *infoTable, long tableSize)
 	return 0;
 }
 
-/* open a file rather than creat */
 int openFIle(FILE **fp, char *name)
 {
 	if (name == NULL || fp == NULL)
@@ -498,7 +478,7 @@ int getExactBlock(FILE *fp, Block *target[], int(*comp)(void* des, void* src), v
 	}
 }
 
-/* assume the site of add block is correct */
+/* assume the site of add block is filled, free block is get by mallocBlock */
 int addInfoBlock(FILE *fp, Block *add)
 {
 	if (fp == NULL || add == NULL)
@@ -532,7 +512,7 @@ int addInfoBlock(FILE *fp, Block *add)
 	return 0;
 }
 
-/* dele info block by key(void* src) */
+/* dele info block by key(void* src). The deleted block is the first of free block */
 int DeleInfoBlock(FILE *fp, int (*compare)(void* dst, void* src), void* src)
 {
 	if (fp == NULL)
@@ -547,8 +527,8 @@ int DeleInfoBlock(FILE *fp, int (*compare)(void* dst, void* src), void* src)
 	getInfoTable(fp, &infoTable, sizeof(BlockTable));
 
 	/* set buffer*/
-	Block *pre = (Block*)malloc(4906);
-	Block *temp = (Block*)malloc(4096);
+	Block *pre = malloc(4906);
+	Block *temp = malloc(4096);
 	if (pre == NULL || temp == NULL)
 	{
 		panic("null pointer\n");
@@ -588,7 +568,9 @@ int DeleInfoBlock(FILE *fp, int (*compare)(void* dst, void* src), void* src)
 			freeTable.num += 1;
 			setBlock(fp, freeTable.head, temp);
 			setFreeTable(fp, &freeTable);
-			temp->next = pre->next;			/* make the loop continue */
+
+			/* make the loop continue */
+			temp->next = pre->next;			
 		}
 	}
 
@@ -597,7 +579,7 @@ int DeleInfoBlock(FILE *fp, int (*compare)(void* dst, void* src), void* src)
 	return 0;
 }
 
-/* find the block by key(void* src1), modify that block to void* src2 */
+/* find the block by key(void* src1), modify that block to (void* src2) */
 int modifyBlock(FILE *fp, int (*compare)(void* dst, void* src), int (*change)(void* dst, void* src), void *src1, void *src2)
 {
 	if (fp == NULL)
@@ -626,5 +608,19 @@ int modifyBlock(FILE *fp, int (*compare)(void* dst, void* src), int (*change)(vo
 	}
 
 	free(current);
+	return 0;
+}
+
+/* get free table and info table */
+int getTable(FILE *fp, BlockTable *freeTable, BlockTable *infoTable, int infoSize)
+{
+	if (fp == NULL)
+	{
+		panic("null pointer\n");
+		return -1;
+	}
+
+	getFreeTable(fp, freeTable);
+	getInfoTable(fp, infoTable, infoSize);
 	return 0;
 }
