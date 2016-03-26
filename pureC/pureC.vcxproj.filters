@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="b.c">
+    <ClCompile Include="test.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="a.c">
+    <ClCompile Include="malloc_base_on_file.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,7 +26,7 @@
     <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="b.h">
+    <ClInclude Include="malloc_base_on_file.h">
       <Filter>源文件</Filter>
     </ClInclude>
   </ItemGroup>

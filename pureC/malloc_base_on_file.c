@@ -46,7 +46,7 @@ struct tBlockTable
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include "b.h"
+#include "malloc_base_on_file.h"
 
 void panic(char *str)
 {

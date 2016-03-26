@@ -148,14 +148,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="a.c" />
-    <ClCompile Include="b.c" />
+    <ClCompile Include="test.c" />
+    <ClCompile Include="malloc_base_on_file.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="b.h" />
+    <ClInclude Include="malloc_base_on_file.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
